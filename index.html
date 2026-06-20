@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>사각형 실험실 (Quadrilateral Lab) - 중학 수학 기하 시뮬레이터</title>
+  <meta name="description" content="학생들이 꼭짓점을 드래그하여 사각형을 변형하고 성질을 실시간으로 탐구하는 중학교 수학 인터랙티브 기하 학습 도구입니다.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 헤더 영역 -->
+  <header>
+    <div class="logo-section">
+      <h1>Quadrilateral Lab</h1>
+      <p>수학 실험실: 사각형의 정의와 성질 발견하기</p>
+    </div>
+    <div class="header-controls">
+      <button class="btn" id="btn-contrast-toggle" title="빔프로젝터나 밝은 환경을 위한 고대비 화면 설정">
+        <span>🌓</span> 고대비 모드
+      </button>
+      <button class="btn" id="btn-classroom" title="학급 입장 및 모니터링">
+        <span>🏫</span> 교실 연결
+      </button>
+      <button class="btn primary" id="btn-reset" title="꼭짓점 위치를 초기 상태로 리셋">
+        <span>🔄</span> 리셋
+      </button>
+    </div>
+  </header>
+
+  <!-- 메인 레이아웃 -->
+  <main>
+    <!-- 좌측 인터랙티브 캔버스 -->
+    <div class="canvas-container">
+      <!-- 상단 사각형 실시간 분류 배지 -->
+      <div class="canvas-header">
+        <div class="classification-badge" id="shape-badge">
+          <span class="badge-dot" id="badge-dot"></span>
+          <span class="badge-text" id="badge-text">분석 중...</span>
+        </div>
+      </div>
+
+      <!-- 기하 작도 SVG 영역 -->
+      <svg id="geo-canvas">
+        <defs>
+          <!-- 화살표 정의 (평행 표시용) -->
+          <marker id="arrow" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#f59e0b" />
+          </marker>
+          <marker id="arrow-double" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 5 5 L 0 9 M 4 1 L 9 5 L 4 9" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.2" fill-opacity="0" />
+          </marker>
+        </defs>
+        
+        <!-- 대각선 (AC, BD) -->
+        <line id="diag-ac" class="geo-diagonal" />
+        <line id="diag-bd" class="geo-diagonal" />
+        
+        <!-- 대각선 직교 표시 사각형 -->
+        <path id="diag-perp-mark" class="geo-diagonal-perp" />
+
+        <!-- 내각 영역 채우기 및 각도기 호 (A, B, C, D) -->
+        <path id="angle-sector-a" class="geo-angle-sector" />
+        <path id="angle-sector-b" class="geo-angle-sector" />
+        <path id="angle-sector-c" class="geo-angle-sector" />
+        <path id="angle-sector-d" class="geo-angle-sector" />
+
+        <!-- 주 사각형 다각형 -->
+        <polygon id="quad-shape" class="geo-polygon" />
+
+        <!-- 대변 평행 표시 기호들 -->
+        <path id="para-mark-ab" class="geo-parallel-arrow" />
+        <path id="para-mark-bc" class="geo-parallel-arrow" />
+        <path id="para-mark-cd" class="geo-parallel-arrow" />
+        <path id="para-mark-da" class="geo-parallel-arrow" />
+
+        <!-- 변 길이 같음 표시 기호들 (빗금) -->
+        <path id="tick-mark-ab" class="geo-tick-mark" />
+        <path id="tick-mark-bc" class="geo-tick-mark" />
+        <path id="tick-mark-cd" class="geo-tick-mark" />
+        <path id="tick-mark-da" class="geo-tick-mark" />
+
+        <!-- 대각선 교점 -->
+        <circle id="diag-intersection" r="5" fill="#3b82f6" stroke="#ffffff" stroke-width="1.5" style="display: none;" />
+
+        <!-- 길이 측정 수치 텍스트 레이블 -->
+        <text id="label-ab" class="geo-label length-label" text-anchor="middle"></text>
+        <text id="label-bc" class="geo-label length-label" text-anchor="middle"></text>
+        <text id="label-cd" class="geo-label length-label" text-anchor="middle"></text>
+        <text id="label-da" class="geo-label length-label" text-anchor="middle"></text>
+
+        <!-- 대각선 길이 레이블 -->
+        <text id="label-ac" class="geo-label length-label" text-anchor="middle" fill="#94a3b8"></text>
+        <text id="label-bd" class="geo-label length-label" text-anchor="middle" fill="#94a3b8"></text>
+
+        <!-- 각도 수치 텍스트 레이블 -->
+        <text id="label-angle-a" class="geo-label angle-label" text-anchor="middle"></text>
+        <text id="label-angle-b" class="geo-label angle-label" text-anchor="middle"></text>
+        <text id="label-angle-c" class="geo-label angle-label" text-anchor="middle"></text>
+        <text id="label-angle-d" class="geo-label angle-label" text-anchor="middle"></text>
+
+        <!-- 드래그 가능한 꼭짓점 핸들 (A, B, C, D) -->
+        <g id="vertex-a" class="geo-vertex-group" data-idx="0">
+          <circle r="8" class="geo-vertex" fill="#ff4757" />
+          <text dx="0" dy="-14" class="geo-label" text-anchor="middle">A</text>
+        </g>
+        <g id="vertex-b" class="geo-vertex-group" data-idx="1">
+          <circle r="8" class="geo-vertex" fill="#ffa502" />
+          <text dx="0" dy="22" class="geo-label" text-anchor="middle">B</text>
+        </g>
+        <g id="vertex-c" class="geo-vertex-group" data-idx="2">
+          <circle r="8" class="geo-vertex" fill="#2ed573" />
+          <text dx="0" dy="22" class="geo-label" text-anchor="middle">C</text>
+        </g>
+        <g id="vertex-d" class="geo-vertex-group" data-idx="3">
+          <circle r="8" class="geo-vertex" fill="#1e90ff" />
+          <text dx="0" dy="-14" class="geo-label" text-anchor="middle">D</text>
+        </g>
+      </svg>
+
+      <!-- 하단 탐구 보조 도구 툴바 -->
+      <div class="canvas-toolbar">
+        <button class="btn active" id="btn-toggle-diagonals" title="대각선 보조선 토글">
+          <span>📏</span> 대각선
+        </button>
+        <button class="btn active" id="btn-toggle-lengths" title="변 길이 수치 토글">
+          <span>📏</span> 변의 길이
+        </button>
+        <button class="btn active" id="btn-toggle-angles" title="내각 크기 수치 토글">
+          <span>📐</span> 내각의 크기
+        </button>
+        <button class="btn" id="btn-toggle-snap" title="꼭짓점 이동 시 그리드 격자에 딱 붙는 기능 토글">
+          <span>🕸️</span> 격자 스냅
+        </button>
+      </div>
+    </div>
+
+    <!-- 우측 정보 및 제어 패널 -->
+    <div class="side-panel">
+      <!-- 탭 메뉴 -->
+      <div class="panel-tabs">
+        <div class="panel-tab active" data-tab="properties">실시간 분석</div>
+        <div class="panel-tab" data-tab="locks">조건 잠금</div>
+        <div class="panel-tab" data-tab="hierarchy">가족 관계</div>
+        <div class="panel-tab" data-tab="missions">탐구 미션</div>
+      </div>
+
+      <!-- 탭 내용 영역 -->
+      <div class="panel-content">
+        
+        <!-- Tab 1: 실시간 분석 (Properties) -->
+        <div class="tab-pane active" id="pane-properties">
+          <h3 class="section-title">도형의 상세 정보</h3>
+          <div class="properties-grid">
+            <div class="prop-card">
+              <h4>변의 길이 (px)</h4>
+              <div class="prop-row"><span>AB:</span> <span class="val" id="val-ab">-</span></div>
+              <div class="prop-row"><span>BC:</span> <span class="val" id="val-bc">-</span></div>
+              <div class="prop-row"><span>CD:</span> <span class="val" id="val-cd">-</span></div>
+              <div class="prop-row"><span>DA:</span> <span class="val" id="val-da">-</span></div>
+            </div>
+            <div class="prop-card">
+              <h4>내각의 크기 (도)</h4>
+              <div class="prop-row"><span>∠A:</span> <span class="val" id="val-ang-a">-</span></div>
+              <div class="prop-row"><span>∠B:</span> <span class="val" id="val-ang-b">-</span></div>
+              <div class="prop-row"><span>∠C:</span> <span class="val" id="val-ang-c">-</span></div>
+              <div class="prop-row"><span>∠D:</span> <span class="val" id="val-ang-d">-</span></div>
+            </div>
+            <div class="prop-card" style="grid-column: span 2;">
+              <h4>대각선 성질</h4>
+              <div class="prop-row"><span>길이 AC / BD:</span> <span class="val" id="val-diag-lens">-</span></div>
+              <div class="prop-row"><span>서로 수직인가?</span> <span class="val" id="val-diag-perp">-</span></div>
+              <div class="prop-row"><span>서로 이등분하는가?</span> <span class="val" id="val-diag-bisect">-</span></div>
+            </div>
+          </div>
+
+          <h3 class="section-title">만족 중인 성질 (판정 조건)</h3>
+          <div class="satisfied-properties" id="satisfied-list">
+            <!-- 자바스크립트로 동적 렌더링 -->
+          </div>
+        </div>
+
+        <!-- Tab 2: 조건 잠금 (Locks) -->
+        <div class="tab-pane" id="pane-locks">
+          <h3 class="section-title">제약 조건 고정 탐구</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.4;">
+            특정 조건을 잠그면, 꼭짓점을 드래그해도 해당 도형의 성질이 깨지지 않도록 나머지 좌표가 자동으로 즉시 계산되어 움직입니다. 조건을 추가로 잠그는 자유도의 변화를 관찰해보세요.
+          </p>
+          <div class="lock-list">
+            <div class="lock-card" data-lock="none">
+              <div class="lock-info">
+                <span class="lock-title">잠금 해제 (자유 변형)</span>
+                <span class="lock-desc">자유롭게 모든 꼭짓점을 개별적으로 움직입니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="trapezoid">
+              <div class="lock-info">
+                <span class="lock-title">사다리꼴 잠금</span>
+                <span class="lock-desc">최소 한 쌍의 마주보는 변이 평행을 유지합니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="isosceles_trapezoid">
+              <div class="lock-info">
+                <span class="lock-title">등변사다리꼴 잠금</span>
+                <span class="lock-desc">한 쌍의 변이 평행하며 양 밑각의 크기가 항상 같게 대칭으로 움직입니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="parallelogram">
+              <div class="lock-info">
+                <span class="lock-title">평행사변형 잠금</span>
+                <span class="lock-desc">두 쌍의 대변이 마주보며 늘 평행한 성질을 유지합니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="rectangle">
+              <div class="lock-info">
+                <span class="lock-title">직사각형 잠금</span>
+                <span class="lock-desc">모든 각이 90도를 이루며 직사각형 형태를 유지하고 크기만 변합니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="rhombus">
+              <div class="lock-info">
+                <span class="lock-title">마름모 잠금</span>
+                <span class="lock-desc">네 변의 길이가 늘 일치하고 대각선이 서로 직교하게 보정됩니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+            <div class="lock-card" data-lock="square">
+              <div class="lock-info">
+                <span class="lock-title">정사각형 잠금</span>
+                <span class="lock-desc">직사각형과 마름모의 성질을 합친 정사각형 형태를 유지합니다.</span>
+              </div>
+              <div class="lock-switch"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: 가족 관계 (Hierarchy) -->
+        <div class="tab-pane" id="pane-hierarchy">
+          <h3 class="section-title">사각형 사이의 포함 관계</h3>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1.25rem; line-height: 1.4;">
+            아래 다이어그램에서 현재 도형 종류에 해당하는 포함 경로의 노드가 실시간으로 빛납니다. 더 구체적인 정의를 만족할수록 하단 계층으로 내려갑니다.
+          </p>
+          
+          <div class="hierarchy-tree">
+            <!-- 사각형 -->
+            <div class="tree-node" data-node="quadrilateral">일반 사각형</div>
+            <div class="tree-connector"></div>
+            
+            <!-- 사다리꼴 -->
+            <div class="tree-node" data-node="trapezoid">사다리꼴 (한 쌍 대변 평행)</div>
+            <div class="tree-connector"></div>
+            
+            <!-- 평행사변형 & 등변사다리꼴 갈림길 -->
+            <div class="tree-branches">
+              <div class="tree-branch-container">
+                <div class="tree-node" data-node="parallelogram" style="width: 140px;">평행사변형</div>
+                <div class="tree-connector"></div>
+                <div class="tree-branches" style="width: 100%;">
+                  <div class="tree-branch-container">
+                    <div class="tree-node" data-node="rectangle" style="width: 75px; font-size:0.75rem; padding: 0.6rem 0.2rem;">직사각형</div>
+                    <div class="tree-connector"></div>
+                  </div>
+                  <div class="tree-branch-container">
+                    <div class="tree-node" data-node="rhombus" style="width: 75px; font-size:0.75rem; padding: 0.6rem 0.2rem;">마름모</div>
+                    <div class="tree-connector"></div>
+                  </div>
+                </div>
+                <div class="tree-node" data-node="square" style="width: 140px;">정사각형</div>
+              </div>
+              
+              <div class="tree-branch-container">
+                <div class="tree-node" data-node="isosceles_trapezoid" style="width: 120px;">등변사다리꼴</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 노드 세부 설명 뷰어 -->
+          <div class="node-info-card" id="node-info-detail">
+            <h4 id="node-info-title">다이어그램 클릭안내</h4>
+            <p id="node-info-desc" style="color: var(--text-secondary); line-height: 1.4;">위 다이어그램의 노드를 클릭하면 해당 사각형의 정의 및 교과서 판정 조건들이 설명 카드로 출력됩니다.</p>
+          </div>
+        </div>
+
+        <!-- Tab 4: 탐구 미션 (Missions) -->
+        <div class="tab-pane" id="pane-missions">
+          <div class="mission-progress">
+            <span style="font-size: 0.85rem; font-weight: 500;">단계별 도전 과제</span>
+            <div class="mission-step-dots" id="mission-dots">
+              <div class="step-dot active" data-step="1"></div>
+              <div class="step-dot" data-step="2"></div>
+              <div class="step-dot" data-step="3"></div>
+              <div class="step-dot" data-step="4"></div>
+              <div class="step-dot" data-step="5"></div>
+            </div>
+          </div>
+
+          <div class="mission-card" id="mission-body">
+            <span class="mission-badge" id="m-badge">미션 1</span>
+            <h4 class="mission-title" id="m-title">사다리꼴 만들기</h4>
+            <p class="mission-desc" id="m-desc">꼭짓점을 드래그하여 최소 한 쌍의 대변이 마주보고 평행한 사다리꼴을 만들어보세요.</p>
+            
+            <div class="mission-checklist" id="m-checklist">
+              <div class="chk-item pending">
+                <span class="chk-icon"></span>
+                <span class="chk-text">AB ∥ CD 또는 BC ∥ DA</span>
+              </div>
+            </div>
+
+            <div class="mission-controls">
+              <button class="btn" id="btn-mission-hint" style="padding: 0.4rem 0.8rem;">💡 힌트</button>
+            </div>
+
+            <!-- 미션 성공 축하 레이어 -->
+            <div class="success-overlay" id="success-layer" style="display: none;">
+              <div class="success-icon">🎉</div>
+              <div class="success-title">미션 성공!</div>
+              <div class="success-desc" id="success-desc">훌륭합니다! 사다리꼴의 정의를 잘 발견하셨습니다.</div>
+              <button class="btn primary" id="btn-next-mission">다음 미션으로 ➡️</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </main>
+
+  <!-- 교실 연결 현황 모달 팝업 -->
+  <div class="modal-overlay" id="classroom-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="section-title" style="margin-bottom: 0;">🏫 실시간 학급 현황 (교사용 대시보드)</h3>
+        <button class="btn" id="btn-close-modal" style="padding: 0.25rem 0.5rem; font-size: 1.1rem;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem; line-height: 1.4;">
+          <strong>학급 코드: MATH-7B-0620</strong><br>
+          학생들이 학습 모드에 참여 중이며, 아래 대시보드를 통해 실시간 진행율을 모니터링할 수 있습니다.
+        </p>
+        <div class="student-list">
+          <div class="student-row">
+            <span class="student-name">김민지 (학생)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div class="student-progress-bar">
+                <div class="student-progress-fill" style="width: 100%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; font-weight:600; color:var(--accent-success);">완료 (5/5)</span>
+            </div>
+          </div>
+          <div class="student-row">
+            <span class="student-name">이지후 (학생)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div class="student-progress-bar">
+                <div class="student-progress-fill" style="width: 80%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; font-weight:600; color:var(--accent-warning);">4단계 진행 중</span>
+            </div>
+          </div>
+          <div class="student-row">
+            <span class="student-name">박준우 (학생)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div class="student-progress-bar">
+                <div class="student-progress-fill" style="width: 60%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; font-weight:600; color:var(--accent-warning);">3단계 진행 중</span>
+            </div>
+          </div>
+          <div class="student-row">
+            <span class="student-name">이서연 (나)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div class="student-progress-bar">
+                <div class="student-progress-fill" id="my-progress-fill" style="width: 20%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; font-weight:600; color:var(--accent-warning);" id="my-progress-text">1단계 진행 중</span>
+            </div>
+          </div>
+          <div class="student-row">
+            <span class="student-name">최예준 (학생)</span>
+            <div style="display: flex; align-items: center; gap: 0.5rem;">
+              <div class="student-progress-bar">
+                <div class="student-progress-fill" style="width: 40%;"></div>
+              </div>
+              <span style="font-size: 0.8rem; font-weight:600; color:var(--accent-warning);">2단계 진행 중</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn primary" id="btn-close-modal-ok">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JS 불러오기 -->
+  <script src="geometry.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
